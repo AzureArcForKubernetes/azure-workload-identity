@@ -401,7 +401,7 @@ sequenceDiagram
     Azure Active Directory->>OpenID Connect Issuer:{IssuerURL}/openid/v1/jwks
     OpenID Connect Issuer->>Azure Active Directory:Return the JWKS document
     Azure Active Directory->>Azure Active Directory:Validate the authenticity of the service account token
-    Kubernetes Workload->>Azure Active Directory:Return an AAD token
+    Azure Active Directory->>Kubernetes Workload:Return an AAD token
 ```
 --->
 <p><img src="installation/self-managed-clusters/../../images/oidc-issuer-sequence-diagram.png" alt="Sequence Diagram" /></p>
@@ -425,8 +425,8 @@ az group create --name &quot;${RESOURCE_GROUP}&quot; --location &quot;${LOCATION
 
 export AZURE_STORAGE_ACCOUNT=&quot;oidcissuer$(openssl rand -hex 4)&quot;
 export AZURE_STORAGE_CONTAINER=&quot;oidc-test&quot;
-az storage account create --resource-group &quot;${RESOURCE_GROUP}&quot; --name &quot;${AZURE_STORAGE_ACCOUNT}&quot;
-az storage container create --name &quot;${AZURE_STORAGE_CONTAINER}&quot; --public-access container
+az storage account create --resource-group &quot;${RESOURCE_GROUP}&quot; --name &quot;${AZURE_STORAGE_ACCOUNT}&quot; --allow-blob-public-access true
+az storage container create --name &quot;${AZURE_STORAGE_CONTAINER}&quot; --public-access blob
 </code></pre>
 <h3 id="2-generate-the-discovery-document"><a class="header" href="#2-generate-the-discovery-document">2. Generate the discovery document</a></h3>
 <pre><code class="language-bash">cat &lt;&lt;EOF &gt; openid-configuration.json
@@ -611,7 +611,7 @@ TEST SUITE: None
 <h3 id="install-envsubst"><a class="header" href="#install-envsubst">Install <code>envsubst</code></a></h3>
 <p>The deployment YAML contains the environment variables we defined above and we rely on the <code>envsubst</code> binary to substitute them for their respective values before deploying. See <a href="https://github.com/a8m/envsubst#installation">the <code>envsubst</code>‘s installation guide</a> on how to install it.</p>
 <p>Install the webhook using the deployment YAML via <code>kubectl apply -f</code> and <code>envsubst</code>:</p>
-<pre><code class="language-bash">curl -sL https://github.com/Azure/azure-workload-identity/releases/download/v1.2.0/azure-wi-webhook.yaml | envsubst | kubectl apply -f -
+<pre><code class="language-bash">curl -sL https://github.com/Azure/azure-workload-identity/releases/download/v1.2.2/azure-wi-webhook.yaml | envsubst | kubectl apply -f -
 </code></pre>
 <details>
 <summary>Output</summary>
