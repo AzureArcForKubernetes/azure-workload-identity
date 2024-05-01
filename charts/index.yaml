@@ -2,10 +2,10 @@ apiVersion: v1
 entries:
   workload-identity-webhook:
   - apiVersion: v2
-    appVersion: v1.2.2
-    created: "2024-05-01T20:40:25.400344183Z"
+    appVersion: 1.2.2
+    created: "2024-05-01T20:46:43.926100536Z"
     description: A Helm chart to install the azure-workload-identity webhook
-    digest: 98af95daaf498d5e217cfa761574b6db53913b3638d55f4c3fca4522272970ea
+    digest: 5df53169084635500cff41fb006e9bc4cbb8c0fb321a6ba210aad9263e19f0df
     home: https://github.com/Azure/azure-workload-identity
     name: workload-identity-webhook
     sources:
@@ -14,4 +14,4 @@ entries:
     urls:
     - https://AzureArcForKubernetes.github.io/azure-workload-identity/charts/workload-identity-webhook-1.2.2.tgz
     version: 1.2.2
-generated: "2024-05-01T20:40:25.39978217Z"
+generated: "2024-05-01T20:46:43.925509416Z"
