@@ -1373,3 +1373,200 @@ func TestHandleError(t *testing.T) {
 		})
 	}
 }
+
+func TestAddTokenSecretMountVolumne(t *testing.T) {
+	tests := []struct {
+		name           string
+		pod            *corev1.Pod
+		expectedVolume []corev1.Volume
+	}{
+		{
+			name: "no volumes in the pod",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod",
+					Namespace: "default",
+				},
+			},
+			expectedVolume: []corev1.Volume{
+				{
+					Name: TokenFilePathName,
+					VolumeSource: corev1.VolumeSource{
+						Projected: &corev1.ProjectedVolumeSource{
+							Sources: []corev1.VolumeProjection{
+								{
+									Secret: &corev1.SecretProjection{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "arc-token-sa",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "azure-identity-token projected volume already exists",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: TokenFilePathName,
+							VolumeSource: corev1.VolumeSource{
+								Projected: &corev1.ProjectedVolumeSource{
+									Sources: []corev1.VolumeProjection{
+										{
+											Secret: &corev1.SecretProjection{
+												LocalObjectReference: corev1.LocalObjectReference{
+													Name: "arc-token-sa",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedVolume: []corev1.Volume{
+				{
+					Name: TokenFilePathName,
+					VolumeSource: corev1.VolumeSource{
+						Projected: &corev1.ProjectedVolumeSource{
+							Sources: []corev1.VolumeProjection{
+								{
+									Secret: &corev1.SecretProjection{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "arc-token-sa",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "existing projected service account token volume not affected",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: TokenFilePathName,
+							VolumeSource: corev1.VolumeSource{
+								Projected: &corev1.ProjectedVolumeSource{
+									Sources: []corev1.VolumeProjection{
+										{
+											Secret: &corev1.SecretProjection{
+												LocalObjectReference: corev1.LocalObjectReference{
+													Name: "existing-secret",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedVolume: []corev1.Volume{
+				{
+					Name: TokenFilePathName,
+					VolumeSource: corev1.VolumeSource{
+						Projected: &corev1.ProjectedVolumeSource{
+							Sources: []corev1.VolumeProjection{
+								{
+									Secret: &corev1.SecretProjection{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "existing-secret",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Name: TokenFilePathName,
+					VolumeSource: corev1.VolumeSource{
+						Projected: &corev1.ProjectedVolumeSource{
+							Sources: []corev1.VolumeProjection{
+								{
+									Secret: &corev1.SecretProjection{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "arc-token-sa",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := addTokenSecretMountVolumne(test.pod, "arc-token-sa")
+			if err != nil {
+				t.Fatalf("expected err to be nil, got: %v", err)
+			}
+			if !reflect.DeepEqual(test.pod.Spec.Volumes, test.expectedVolume) {
+				t.Fatalf("expected: %v, got: %v", test.pod.Spec.Volumes, test.expectedVolume)
+			}
+		})
+	}
+}
+
+func TestGetTokenSecretName(t *testing.T) {
+	tests := []struct {
+		name            string
+		sa              *corev1.ServiceAccount
+		tokenSecretName string
+	}{
+		{
+			name: "secret name not present",
+			sa: &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sa",
+					Namespace: "default",
+				},
+			},
+			tokenSecretName: "arc-token-sa",
+		},
+		{
+			name: "secret name present",
+			sa: &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "sa",
+					Namespace:   "default",
+					Annotations: map[string]string{ArcBasedIdentityAnnotation: "arc-token-override"},
+				},
+			},
+			tokenSecretName: "arc-token-override",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tokenSecretName := getTokenSecretName(test.sa)
+			if tokenSecretName != test.tokenSecretName {
+				t.Fatalf("expected: %s, got: %s", test.tokenSecretName, tokenSecretName)
+			}
+		})
+	}
+}

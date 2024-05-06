@@ -160,8 +160,18 @@ func (m *podMutator) Handle(ctx context.Context, req admission.Request) (respons
 	pod.Spec.InitContainers = m.mutateContainers(pod.Spec.InitContainers, clientID, tenantID, skipContainers)
 	pod.Spec.Containers = m.mutateContainers(pod.Spec.Containers, clientID, tenantID, skipContainers)
 
-	// add the projected service account token volume to the pod if not exists
-	addProjectedServiceAccountTokenVolume(pod, serviceAccountTokenExpiration, m.audience)
+	if m.config.IsArcEnabledCluster {
+		tokenSecretName := getTokenSecretName(serviceAccount)
+
+		// add the projected service account token volume to the pod if not exists
+		if err = addTokenSecretMountVolumne(pod, tokenSecretName); err != nil {
+			logger.Error("failed to add projected service account volume", err)
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+	} else {
+		// add the projected service account token volume to the pod if not exists
+		addProjectedServiceAccountTokenVolume(pod, serviceAccountTokenExpiration, m.audience)
+	}
 
 	marshaledPod, err := json.Marshal(pod)
 	if err != nil {
@@ -338,6 +348,13 @@ func getClientID(sa *corev1.ServiceAccount) string {
 	return sa.Annotations[ClientIDAnnotation]
 }
 
+func getTokenSecretName(sa *corev1.ServiceAccount) string {
+	if sa != nil && sa.Annotations[ArcBasedIdentityAnnotation] != "" {
+		return sa.Annotations[ArcBasedIdentityAnnotation]
+	}
+	return fmt.Sprintf("%s%s", DefaultArcBasedIdentitySecretNamePrefix, sa.Name)
+}
+
 // getTenantID returns the tenantID to be configured
 func getTenantID(sa *corev1.ServiceAccount, c *config.Config) string {
 	// use tenantID if provided in the annotation
@@ -389,6 +406,46 @@ func addProjectedTokenVolumeMount(container corev1.Container) corev1.Container {
 		})
 
 	return container
+}
+
+func addTokenSecretMountVolumne(pod *corev1.Pod, tokenSecretName string) error {
+	// add the projected service account token volume to the pod if not exists
+	for _, volume := range pod.Spec.Volumes {
+		if volume.Projected == nil {
+			continue
+		}
+		for _, pvs := range volume.Projected.Sources {
+			if pvs.Secret == nil {
+				continue
+			}
+			if pvs.Secret.Name == tokenSecretName {
+				return nil
+			}
+		}
+	}
+
+	// add the projected service account token volume
+	// the path for this volume will always be set to "azure-identity-token"
+	pod.Spec.Volumes = append(
+		pod.Spec.Volumes,
+		corev1.Volume{
+			Name: TokenFilePathName,
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{
+					Sources: []corev1.VolumeProjection{
+						{
+							Secret: &corev1.SecretProjection{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: tokenSecretName,
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+
+	return nil
 }
 
 func addProjectedServiceAccountTokenVolume(pod *corev1.Pod, serviceAccountTokenExpiration int64, audience string) {

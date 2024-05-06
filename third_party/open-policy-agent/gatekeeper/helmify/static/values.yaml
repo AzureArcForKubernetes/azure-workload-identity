@@ -4,7 +4,7 @@
 
 replicaCount: 2
 image:
-  repository: testpublic.azurecr.io/workload-identity-webhook
+  repository: testpublic.azurecr.io/provisioned/workload-identity-webhook
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   release: v1.2.2
@@ -34,6 +34,7 @@ mutatingWebhookAnnotations: {}
 podLabels: {}
 podAnnotations: {}
 mutatingWebhookNamespaceSelector: {}
+isArcEnabledCluster: false
 # minAvailable and maxUnavailable are mutually exclusive
 podDisruptionBudget:
   minAvailable: 1
